@@ -16,7 +16,7 @@ export default function Home() {
                 <Tractor className="h-6 w-6 text-primary" />
                 Log New Produce Batch
               </CardTitle>
-              <CardDescription>Enter details about your produce and generate a QR code for traceability.</CardDescription>
+              <CardDescription>Enter details about your produce, store it in MongoDB, and generate a QR code linking to its record.</CardDescription>
             </CardHeader>
             <CardContent>
               <ProduceLogger />
@@ -43,11 +43,11 @@ export default function Home() {
                  <ScanLine className="h-6 w-6 text-primary" />
                  Trace Produce (Coming Soon)
                </CardTitle>
-                <CardDescription>Scan a QR code to view the journey of your produce from farm to table.</CardDescription>
+                <CardDescription>Scan a QR code to view the journey of your produce, retrieving data from the database.</CardDescription>
              </CardHeader>
              <CardContent>
-               <p className="text-muted-foreground">The traceability scanning feature is under development. Consumers will be able to scan QR codes generated here to see the full history.</p>
-                {/* Add QR code scanning UI elements later */}
+               <p className="text-muted-foreground">The traceability scanning feature is under development. Consumers will scan the generated QR codes, which link to a page displaying the produce details fetched from the MongoDB database.</p>
+                {/* Future: Add QR code scanning UI elements and logic to fetch/display data from /trace/[id] */}
              </CardContent>
            </Card>
         </div>

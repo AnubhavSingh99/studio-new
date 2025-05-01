@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Label } from '@/components/ui/label'; // Keep Label import if used elsewhere, otherwise remove
 import { Textarea } from '@/components/ui/textarea';
 import { QrCode, Loader2, CheckCircle } from 'lucide-react';
 import {
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/form';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
+import { useToast } from '@/hooks/use-toast'; // Import useToast
 
 const produceSchema = z.object({
   produceType: z.string().min(1, 'Produce type is required'),
@@ -31,9 +32,11 @@ const produceSchema = z.object({
 type ProduceFormData = z.infer<typeof produceSchema>;
 
 export function ProduceLogger() {
-  const [qrCodeData, setQrCodeData] = useState<string | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null); // Store the full URL
+  const [loggedProduceId, setLoggedProduceId] = useState<string | null>(null); // Store the ID for display/confirmation
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast(); // Initialize toast
 
   const form = useForm<ProduceFormData>({
     resolver: zodResolver(produceSchema),
@@ -46,33 +49,61 @@ export function ProduceLogger() {
     },
   });
 
-  // TODO: Replace with actual blockchain interaction and QR code generation library
   const onSubmit = async (data: ProduceFormData) => {
     setIsGenerating(true);
     setError(null);
-    setQrCodeData(null);
-    console.log('Logging produce data (simulated blockchain):', data);
-
-    // Simulate API call / blockchain transaction
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    setQrCodeDataUrl(null);
+    setLoggedProduceId(null);
+    console.log('Submitting produce data:', data);
 
     try {
-      // In a real app:
-      // 1. Send data to Firebase backend
-      // 2. Backend interacts with blockchain (e.g., writes data to smart contract)
-      // 3. Backend generates a unique identifier (hash or ID)
-      // 4. Backend generates QR code content based on the identifier/data
-      // 5. Return QR code data URL or identifier to frontend
+      const response = await fetch('/api/produce/log', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
 
-      // Simulate success
-      const qrContent = JSON.stringify({ ...data, timestamp: new Date().toISOString() });
-      // Simulate generating a QR code URL (replace with actual library like 'qrcode.react' or server-side generation)
-      const dummyQrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrContent)}`;
-      setQrCodeData(dummyQrDataUrl);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const produceId = result.id;
+
+      if (!produceId) {
+          throw new Error('API did not return an ID');
+      }
+
+      console.log('Produce logged successfully with ID:', produceId);
+      setLoggedProduceId(produceId);
+
+
+      // Generate QR code content pointing to a future traceability page
+      // Replace 'YOUR_DOMAIN' with your actual domain when deployed
+      const traceabilityUrl = `${window.location.origin}/trace/${produceId}`; // Use relative origin for flexibility
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(traceabilityUrl)}`;
+
+      setQrCodeDataUrl(qrApiUrl);
+
+      toast({
+        title: "Produce Logged",
+        description: `Batch successfully logged with ID: ${produceId.substring(0, 8)}...`, // Show partial ID
+        variant: "default",
+      });
       form.reset(); // Clear form after successful submission
+
     } catch (err) {
       console.error('Error logging produce:', err);
-      setError('Failed to log produce. Please try again.');
+      const message = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(`Failed to log produce: ${message}. Please try again.`);
+       toast({
+         title: "Error Logging Produce",
+         description: message,
+         variant: "destructive",
+       });
     } finally {
       setIsGenerating(false);
     }
@@ -159,7 +190,7 @@ export function ProduceLogger() {
             ) : (
               <QrCode className="mr-2 h-4 w-4" />
             )}
-            {isGenerating ? 'Generating QR Code...' : 'Log Produce & Generate QR'}
+            {isGenerating ? 'Logging & Generating QR...' : 'Log Produce & Generate QR'}
           </Button>
           {error && <p className="text-sm font-medium text-destructive">{error}</p>}
         </form>
@@ -170,9 +201,10 @@ export function ProduceLogger() {
           <div className="flex flex-col items-center text-muted-foreground">
             <Loader2 className="h-16 w-16 animate-spin text-primary" />
             <p className="mt-2">Generating Traceability QR Code...</p>
+            <p className="text-xs">(Connecting to database...)</p>
           </div>
         )}
-        {qrCodeData && !isGenerating && (
+        {qrCodeDataUrl && loggedProduceId && !isGenerating && (
           <Card className="w-full max-w-xs text-center shadow-lg border-accent">
             <CardHeader>
               <CardTitle className="flex items-center justify-center gap-2 text-accent">
@@ -180,23 +212,25 @@ export function ProduceLogger() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <p className="text-sm text-muted-foreground mb-1">Record ID:</p>
+              <p className="text-xs font-mono bg-muted px-2 py-1 rounded mb-3 break-all">{loggedProduceId}</p>
               <p className="text-sm text-muted-foreground mb-4">Scan this QR code for traceability:</p>
-              {/* Using picsum for placeholder as QR generation needs a library or backend */}
                <Image
-                    src={qrCodeData}
-                    alt="Generated QR Code Placeholder"
+                    src={qrCodeDataUrl} // Use the generated URL
+                    alt="Generated QR Code"
                     width={150}
                     height={150}
                     className="mx-auto rounded-md border p-1 bg-white"
                     data-ai-hint="qr code"
+                    unoptimized // Recommended for external QR code APIs if optimization causes issues
                 />
             </CardContent>
              <CardFooter className="text-xs text-muted-foreground justify-center">
-                Blockchain record created (simulated).
+                Data stored in MongoDB.
              </CardFooter>
           </Card>
         )}
-         {!qrCodeData && !isGenerating && (
+         {!qrCodeDataUrl && !isGenerating && (
             <div className="flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed border-border rounded-lg p-8 h-full w-full max-w-xs">
                 <QrCode className="h-16 w-16 mb-4 text-primary/50" />
                 <p>Your generated QR code will appear here once you log the produce.</p>
