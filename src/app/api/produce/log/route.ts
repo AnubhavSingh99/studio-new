@@ -1,8 +1,7 @@
 // src/app/api/produce/log/route.ts
 import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
-import { randomBytes } from 'crypto'; // For simulating transaction hash
 import { z } from 'zod';
+import { addProduceLog } from '@/lib/mock-db'; // Import mock DB function
 
 const produceSchema = z.object({
   produceType: z.string().min(1),
@@ -23,30 +22,20 @@ export async function POST(request: Request) {
 
     const produceData = validationResult.data;
 
-    const client = await clientPromise;
-    const db = client.db(); // Use default database from connection string or specify one e.g., client.db("agritrace")
-    const collection = db.collection('produce_logs');
+    // Add data to the mock database
+    const newLog = addProduceLog(produceData);
 
-    // Simulate blockchain transaction hash
-    const transactionHash = `0x${randomBytes(32).toString('hex')}`;
-
-    const result = await collection.insertOne({
-      ...produceData,
-      blockchainTransactionHash: transactionHash, // Store simulated hash
-      loggedAt: new Date(),
-    });
-
-    if (!result.insertedId) {
-       throw new Error('Failed to insert data into MongoDB');
+    if (!newLog || !newLog._id) {
+       throw new Error('Failed to add data to mock store');
     }
 
-
-    // Return the MongoDB document ID
-    return NextResponse.json({ id: result.insertedId.toString() }, { status: 201 });
+    // Return the generated mock ID
+    return NextResponse.json({ id: newLog._id.toString() }, { status: 201 });
 
   } catch (error) {
-    console.error('Error logging produce to MongoDB:', error);
+    console.error('Error logging produce to mock store:', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
-    return NextResponse.json({ error: 'Failed to log produce data', details: errorMessage }, { status: 500 });
+    // Provide a generic error message, hide specific details like auth errors
+    return NextResponse.json({ error: 'Failed to log produce data.' }, { status: 500 });
   }
 }

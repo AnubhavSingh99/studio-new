@@ -70,8 +70,8 @@ export function ProduceLogger() {
       if (!response.ok) {
         try {
             const errorData = await response.json();
-            // Use the detailed error message from the backend if available
-            errorDetails = `${errorData.error}${errorData.details ? `: ${errorData.details}` : ''}`;
+            // Use the generic error message from the backend if available
+            errorDetails = errorData.error || `HTTP error! status: ${response.status}`;
         } catch (e) {
             // Ignore if response body is not JSON or empty
             console.warn("Could not parse error response JSON:", e);
@@ -93,8 +93,7 @@ export function ProduceLogger() {
       setLoggedProduceId(produceId);
 
 
-      // Generate QR code content pointing to a future traceability page
-      // Replace 'YOUR_DOMAIN' with your actual domain when deployed
+      // Generate QR code content pointing to the traceability page
       const traceabilityUrl = `${window.location.origin}/trace/${produceId}`; // Use relative origin for flexibility
       const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(traceabilityUrl)}`;
 
@@ -111,10 +110,12 @@ export function ProduceLogger() {
       console.error('Error in ProduceLogger onSubmit:', err);
       // Ensure the error message displayed is the one thrown (either from backend or status text)
       const message = err instanceof Error ? err.message : 'An unknown error occurred';
-      setError(`Failed to log produce: ${message}.`); // Display the error message directly
+      // Display a user-friendly error message without revealing internal details like auth issues
+      const displayError = message.includes("Authentication failed") ? "Failed to log produce. Please check configuration." : `Failed to log produce: ${message}.`;
+      setError(displayError); // Display the user-friendly error message
        toast({
          title: "Error Logging Produce",
-         description: message, // Display the detailed error from the backend
+         description: displayError, // Display the user-friendly error
          variant: "destructive",
        });
     } finally {
@@ -222,7 +223,7 @@ export function ProduceLogger() {
           <div className="flex flex-col items-center text-muted-foreground">
             <Loader2 className="h-16 w-16 animate-spin text-primary" />
             <p className="mt-2">Generating Traceability QR Code...</p>
-            <p className="text-xs">(Connecting to database...)</p>
+            <p className="text-xs">(Storing data in mock database...)</p>
           </div>
         )}
         {qrCodeDataUrl && loggedProduceId && !isGenerating && (
@@ -247,7 +248,7 @@ export function ProduceLogger() {
                 />
             </CardContent>
              <CardFooter className="text-xs text-muted-foreground justify-center">
-                Data stored in MongoDB.
+                Data stored in memory (mock).
              </CardFooter>
           </Card>
         )}
