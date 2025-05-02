@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label'; // Keep Label import if used elsewhere, otherwise remove
 import { Textarea } from '@/components/ui/textarea';
-import { QrCode, Loader2, CheckCircle } from 'lucide-react';
+import { QrCode, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -20,6 +20,7 @@ import {
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast'; // Import useToast
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // Import Alert components
 
 const produceSchema = z.object({
   produceType: z.string().min(1, 'Produce type is required'),
@@ -66,8 +67,15 @@ export function ProduceLogger() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        let errorDetails = `HTTP error! status: ${response.status}`;
+        try {
+            const errorData = await response.json();
+            errorDetails = `${errorData.error}${errorData.details ? `: ${JSON.stringify(errorData.details)}` : ''}`;
+        } catch (e) {
+            // Ignore if response body is not JSON or empty
+            console.warn("Could not parse error response JSON:", e);
+        }
+        throw new Error(errorDetails);
       }
 
       const result = await response.json();
@@ -98,7 +106,7 @@ export function ProduceLogger() {
     } catch (err) {
       console.error('Error logging produce:', err);
       const message = err instanceof Error ? err.message : 'An unknown error occurred';
-      setError(`Failed to log produce: ${message}. Please try again.`);
+      setError(`Failed to log produce: ${message}. Please check console for details or try again.`);
        toast({
          title: "Error Logging Produce",
          description: message,
@@ -111,90 +119,98 @@ export function ProduceLogger() {
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="produceType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Produce Type</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Organic Tomatoes" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+      <div className="space-y-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="produceType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Produce Type</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Organic Tomatoes" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="quantity"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Quantity (e.g., kg, units)</FormLabel>
-                <FormControl>
-                  <Input type="number" placeholder="e.g., 100" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name="quantity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Quantity (e.g., kg, units)</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="e.g., 100" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="origin"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Origin (Farm Name/Region)</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Green Valley Farms, CA" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name="origin"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Origin (Farm Name/Region)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Green Valley Farms, CA" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="farmingPractices"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Farming Practices (Optional)</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="e.g., Organic certified, sustainable methods" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name="farmingPractices"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Farming Practices (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="e.g., Organic certified, sustainable methods" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-           <FormField
-            control={form.control}
-            name="transportationDetails"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Transportation Details (Optional)</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="e.g., Refrigerated truck, shipped on 2024-07-28" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name="transportationDetails"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Transportation Details (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="e.g., Refrigerated truck, shipped on 2024-07-28" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
 
-          <Button type="submit" disabled={isGenerating} className="w-full bg-primary hover:bg-primary/90">
-            {isGenerating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <QrCode className="mr-2 h-4 w-4" />
-            )}
-            {isGenerating ? 'Logging & Generating QR...' : 'Log Produce & Generate QR'}
-          </Button>
-          {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-        </form>
-      </Form>
+            <Button type="submit" disabled={isGenerating} className="w-full bg-primary hover:bg-primary/90">
+              {isGenerating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <QrCode className="mr-2 h-4 w-4" />
+              )}
+              {isGenerating ? 'Logging & Generating QR...' : 'Log Produce & Generate QR'}
+            </Button>
+          </form>
+        </Form>
+          {error && (
+             <Alert variant="destructive" className="mt-4">
+               <AlertTriangle className="h-4 w-4" />
+               <AlertTitle>Logging Error</AlertTitle>
+               <AlertDescription>{error}</AlertDescription>
+             </Alert>
+          )}
+       </div>
 
       <div className="flex items-center justify-center">
         {isGenerating && (
@@ -230,7 +246,7 @@ export function ProduceLogger() {
              </CardFooter>
           </Card>
         )}
-         {!qrCodeDataUrl && !isGenerating && (
+         {!qrCodeDataUrl && !isGenerating && !error && ( // Hide placeholder if there's an error
             <div className="flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed border-border rounded-lg p-8 h-full w-full max-w-xs">
                 <QrCode className="h-16 w-16 mb-4 text-primary/50" />
                 <p>Your generated QR code will appear here once you log the produce.</p>
