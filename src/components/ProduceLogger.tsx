@@ -66,15 +66,19 @@ export function ProduceLogger() {
         body: JSON.stringify(data),
       });
 
+      let errorDetails = `HTTP error! status: ${response.status}`;
       if (!response.ok) {
-        let errorDetails = `HTTP error! status: ${response.status}`;
         try {
             const errorData = await response.json();
-            errorDetails = `${errorData.error}${errorData.details ? `: ${JSON.stringify(errorData.details)}` : ''}`;
+            // Use the detailed error message from the backend if available
+            errorDetails = `${errorData.error}${errorData.details ? `: ${errorData.details}` : ''}`;
         } catch (e) {
             // Ignore if response body is not JSON or empty
             console.warn("Could not parse error response JSON:", e);
+             // Use the status text if JSON parsing fails
+            errorDetails = response.statusText || `HTTP error! status: ${response.status}`;
         }
+        // Throw the captured error message (from backend or status)
         throw new Error(errorDetails);
       }
 
@@ -104,12 +108,13 @@ export function ProduceLogger() {
       form.reset(); // Clear form after successful submission
 
     } catch (err) {
-      console.error('Error logging produce:', err);
+      console.error('Error in ProduceLogger onSubmit:', err);
+      // Ensure the error message displayed is the one thrown (either from backend or status text)
       const message = err instanceof Error ? err.message : 'An unknown error occurred';
-      setError(`Failed to log produce: ${message}. Please check console for details or try again.`);
+      setError(`Failed to log produce: ${message}.`); // Display the error message directly
        toast({
          title: "Error Logging Produce",
-         description: message,
+         description: message, // Display the detailed error from the backend
          variant: "destructive",
        });
     } finally {
